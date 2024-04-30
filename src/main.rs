@@ -8,10 +8,11 @@ use axum::middleware;
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, get_service};
 use axum::{Json, Router};
+use axum::body::Body;
 use serde::Deserialize;
 use serde_json::json;
-use std::net::SocketAddr;
 use axum::http::{Method, Uri};
+use tokio::net::TcpListener;
 use tower_cookies::CookieManagerLayer;
 use tower_http::services::ServeDir;
 use uuid::Uuid;
@@ -29,7 +30,7 @@ async fn main() -> Result<()> {
     let mc = ModelController::new().await?;
 
     let routes_apis = web::routes_tickets::routes(mc.clone())
-        .route_layer(middleware::from_fn(web::mw_auth::mw_require_auth));
+        .route_layer(middleware::from_fn(web::mw_auth::mw_require_auth::<Body>));
 
     let routes_all = Router::new()
         .merge(routes_hello())
@@ -38,15 +39,14 @@ async fn main() -> Result<()> {
         .layer(middleware::map_response(main_response_mapper))
         .layer(middleware::from_fn_with_state(
             mc.clone(),
-            web::mw_auth::mw_ctx_resolver,
+            web::mw_auth::mw_ctx_resolver::<Body>,
         ))
         .layer(CookieManagerLayer::new())
         .fallback_service(routes_static());
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
-    println!("->> LISTENING on {addr}\n");
-    axum::Server::bind(&addr)
-        .serve(routes_all.into_make_service())
+    let listener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
+    println!("->> LISTENING on {:?}\n", listener.local_addr());
+    axum::serve(listener, routes_all.into_make_service())
         .await
         .unwrap();
 

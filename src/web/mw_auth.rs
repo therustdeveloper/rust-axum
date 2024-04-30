@@ -3,6 +3,7 @@ use crate::model::ModelController;
 use crate::web::AUTH_TOKEN;
 use crate::{Error, Result};
 use async_trait::async_trait;
+use axum::body::Body;
 use axum::extract::{FromRequestParts, State};
 use axum::http::request::Parts;
 use axum::http::Request;
@@ -13,8 +14,8 @@ use tower_cookies::{Cookie, Cookies};
 
 pub async fn mw_require_auth<B>(
     ctx: Result<Ctx>,
-    req: Request<B>,
-    next: Next<B>,
+    req: Request<Body>,
+    next: Next,
 ) -> Result<Response> {
     println!("->> {:<12} - mw_require_auth", "MIDDLEWARE");
 
@@ -26,8 +27,8 @@ pub async fn mw_require_auth<B>(
 pub async fn mw_ctx_resolver<B>(
     _mc: State<ModelController>,
     cookies: Cookies,
-    mut req: Request<B>,
-    next: Next<B>,
+    mut req: Request<Body>,
+    next: Next,
 ) -> Result<Response> {
     println!("->> {:<12} - mw_ctx_resolver", "MIDDLEWARE");
 
@@ -44,7 +45,7 @@ pub async fn mw_ctx_resolver<B>(
 
     // Remove the cookie if something went wrong other than NoAuthTokenCookie.
     if result_ctx.is_err() && !matches!(result_ctx, Err(Error::AuthFailNoAuthTokenCookie)) {
-        cookies.remove(Cookie::named(AUTH_TOKEN))
+        cookies.remove(Cookie::from(AUTH_TOKEN))
     }
 
     // Store the ctx_result in the request extension.
