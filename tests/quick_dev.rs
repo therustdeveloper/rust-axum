@@ -20,7 +20,7 @@ async fn quick_dev() -> Result<()> {
     let req_create_ticket = hc.do_post(
         "/api/tickets",
         json!({
-            "ticket": "Ticket AAA"
+            "title": "Ticket AAA"
         }),
     );
     req_create_ticket.await?.print().await?;
